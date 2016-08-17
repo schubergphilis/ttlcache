@@ -7,9 +7,10 @@ import (
 
 // Cache is a synchronised map of items that auto-expire once stale
 type Cache struct {
-	mutex sync.RWMutex
-	ttl   time.Duration
-	items map[string]*Item
+	mutex      sync.RWMutex
+	ttl        time.Duration
+	items      map[string]*Item
+	autoExtend bool
 }
 
 // Set is a thread-safe way to add new items to the map
@@ -30,7 +31,9 @@ func (cache *Cache) Get(key string) (data string, found bool) {
 		data = ""
 		found = false
 	} else {
-		item.touch(cache.ttl)
+		if cache.autoExtend {
+			item.touch(cache.ttl)
+		}
 		data = item.data
 		found = true
 	}
@@ -73,11 +76,12 @@ func (cache *Cache) startCleanupTimer() {
 	})()
 }
 
-// NewCache is a helper to create instance of the Cache struct
-func NewCache(duration time.Duration) *Cache {
+// NewCache is a helper to create instance of Cache struct
+func NewCache(duration time.Duration, autoExtend bool) *Cache {
 	cache := &Cache{
-		ttl:   duration,
-		items: map[string]*Item{},
+		ttl:        duration,
+		items:      map[string]*Item{},
+		autoExtend: autoExtend,
 	}
 	cache.startCleanupTimer()
 	return cache
